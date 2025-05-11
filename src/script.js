@@ -89,7 +89,6 @@ function createEffect() {
 
 createEffect(); // Initial effect creation
 document.body.appendChild(effect.domElement); // Append the initial effect's DOM element
-document.getElementById("ascii").style.whiteSpace = "prewrap"; // Assuming 'ascii' is the ID of a container for the effect
 
 // Helper function to dispose of old model resources
 function disposeModel(model) {
@@ -188,7 +187,8 @@ function loadGLTFModel(url, isUploadedBuffer = false, dataBuffer = null) {
 }
 
 // Initial model load (replace with your default animated model)
-loadGLTFModel("./models/animated_model.gltf"); // <<< YOU NEED TO PROVIDE an animated_model.glb in ./models/
+// Path adjusted to be relative to project root, assuming index.html is served from src/
+loadGLTFModel("../models/animated_model.gltf"); // <<< YOU NEED TO PROVIDE an animated_model.gltf (or .glb) in project_root/models/
 
 // --- Event Listeners & UI Functions ---
 
