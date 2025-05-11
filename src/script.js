@@ -188,7 +188,7 @@ function loadGLTFModel(url, isUploadedBuffer = false, dataBuffer = null) {
 
 // Initial model load (replace with your default animated model)
 // Path adjusted to be relative to project root (where index.html is now served from)
-loadGLTFModel("./models/animated_model.gltf"); // <<< YOU NEED TO PROVIDE an animated_model.gltf (or .glb) in project_root/models/
+loadGLTFModel("animated_model.gltf"); // <<< YOU NEED TO PROVIDE an animated_model.gltf (or .glb) in project_root/models/
 
 // --- Event Listeners & UI Functions ---
 
