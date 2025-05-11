@@ -1,4 +1,4 @@
-import "./style.css";
+// import "./style.css"; // Removed due to MIME type issues; main.css is linked in index.html
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 // import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js' // Replaced with GLTFLoader
@@ -87,8 +87,15 @@ function createEffect() {
   }
 }
 
+const asciiContainer = document.getElementById('ascii-container');
+
 createEffect(); // Initial effect creation
-document.body.appendChild(effect.domElement); // Append the initial effect's DOM element
+if (asciiContainer) {
+    asciiContainer.appendChild(effect.domElement);
+} else {
+    console.error("ASCII container not found, appending to body.");
+    document.body.appendChild(effect.domElement);
+}
 
 // Helper function to dispose of old model resources
 function disposeModel(model) {
@@ -187,8 +194,8 @@ function loadGLTFModel(url, isUploadedBuffer = false, dataBuffer = null) {
 }
 
 // Initial model load (replace with your default animated model)
-// Path adjusted to be relative to project root (where index.html is now served from)
-loadGLTFModel("animated_model.gltf"); // <<< YOU NEED TO PROVIDE an animated_model.gltf (or .glb) in project_root/models/
+// Path should be relative to the root index.html
+loadGLTFModel("./models/animated_model.gltf"); // <<< ENSURE this file exists at project_root/models/animated_model.gltf
 
 // --- Event Listeners & UI Functions ---
 
@@ -267,10 +274,18 @@ document.getElementById("updateASCII").addEventListener("click", updateASCII);
 
 function updateASCII() {
   characters = " " + "." + document.getElementById("newASCII").value;
-  // createEffect will remove the old domElement, create a new one, and append it.
-  // It also re-initializes controls.
+  // createEffect will remove the old domElement if it exists by virtue of OrbitControls.dispose()
+  // and then creates a new effect.domElement
   createEffect();
-  document.body.appendChild(effect.domElement); // createEffect now handles controls, but not appending.
+  if (asciiContainer) {
+    // Ensure container is clear before appending new effect.
+    while (asciiContainer.firstChild) {
+        asciiContainer.removeChild(asciiContainer.firstChild);
+    }
+    asciiContainer.appendChild(effect.domElement);
+  } else {
+    document.body.appendChild(effect.domElement);
+  }
   onWindowResize(); // Ensure effect is resized after characters change resolution potentially
 }
 
@@ -278,10 +293,17 @@ document.getElementById("resetASCII").addEventListener("click", resetASCII);
 
 function resetASCII() {
   characters = " .:-+*=%@#";
-  // createEffect will remove the old domElement, create a new one, and append it.
-  // It also re-initializes controls.
+  // createEffect will remove the old domElement if it exists by virtue of OrbitControls.dispose()
+  // and then creates a new effect.domElement
   createEffect();
-  document.body.appendChild(effect.domElement); // createEffect now handles controls, but not appending.
+  if (asciiContainer) {
+    while (asciiContainer.firstChild) {
+        asciiContainer.removeChild(asciiContainer.firstChild);
+    }
+    asciiContainer.appendChild(effect.domElement);
+  } else {
+    document.body.appendChild(effect.domElement);
+  }
   onWindowResize();
 }
 
