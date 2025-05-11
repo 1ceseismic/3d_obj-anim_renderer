@@ -1,4 +1,4 @@
-import "style.css";
+import "./style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 // import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js' // Replaced with GLTFLoader
@@ -187,8 +187,8 @@ function loadGLTFModel(url, isUploadedBuffer = false, dataBuffer = null) {
 }
 
 // Initial model load (replace with your default animated model)
-// Path adjusted to be relative to project root, assuming index.html is served from src/
-loadGLTFModel("../models/animated_model.gltf"); // <<< YOU NEED TO PROVIDE an animated_model.gltf (or .glb) in project_root/models/
+// Path adjusted to be relative to project root (where index.html is now served from)
+loadGLTFModel("./models/animated_model.gltf"); // <<< YOU NEED TO PROVIDE an animated_model.gltf (or .glb) in project_root/models/
 
 // --- Event Listeners & UI Functions ---
 

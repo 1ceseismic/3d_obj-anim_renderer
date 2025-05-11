@@ -8,6 +8,17 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1"
     />
     <title>GLTF To ASCII Generator</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://esm.sh/three@0.164.1",
+          "three/examples/jsm/controls/OrbitControls.js": "https://esm.sh/three@0.164.1/examples/jsm/controls/OrbitControls.js",
+          "three/examples/jsm/loaders/GLTFLoader.js": "https://esm.sh/three@0.164.1/examples/jsm/loaders/GLTFLoader.js",
+          "three/examples/jsm/effects/AsciiEffect.js": "https://esm.sh/three@0.164.1/examples/jsm/effects/AsciiEffect.js",
+          "html2canvas": "https://esm.sh/html2canvas@1.4.1"
+        }
+      }
+    </script>
   </head>
 
   <body>
@@ -93,6 +104,6 @@
         </script>
       </div>
     </form>
-    <script type="module" defer src="/src/script.js"></script>
+    <script type="module" defer src="src/script.js"></script>
   </body>
 </html>
