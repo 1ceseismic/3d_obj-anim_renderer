@@ -87,14 +87,14 @@ function createEffect() {
   }
 }
 
-const asciiContainer = document.getElementById('ascii-container');
+const asciiContainer = document.getElementById("ascii-container");
 
 createEffect(); // Initial effect creation
 if (asciiContainer) {
-    asciiContainer.appendChild(effect.domElement);
+  asciiContainer.appendChild(effect.domElement);
 } else {
-    console.error("ASCII container not found, appending to body.");
-    document.body.appendChild(effect.domElement);
+  console.error("ASCII container not found, appending to body.");
+  document.body.appendChild(effect.domElement);
 }
 
 // Helper function to dispose of old model resources
@@ -195,7 +195,7 @@ function loadGLTFModel(url, isUploadedBuffer = false, dataBuffer = null) {
 
 // Initial model load (replace with your default animated model)
 // Path should be relative to the root index.html
-loadGLTFModel("./models/animated_model.gltf"); // <<< ENSURE this file exists at project_root/models/animated_model.gltf
+loadGLTFModel("./models/human-brain/source/RottenBrain.glb"); // <<< ENSURE this file exists at project_root/models/animated_model.gltf
 
 // --- Event Listeners & UI Functions ---
 
@@ -280,7 +280,7 @@ function updateASCII() {
   if (asciiContainer) {
     // Ensure container is clear before appending new effect.
     while (asciiContainer.firstChild) {
-        asciiContainer.removeChild(asciiContainer.firstChild);
+      asciiContainer.removeChild(asciiContainer.firstChild);
     }
     asciiContainer.appendChild(effect.domElement);
   } else {
@@ -298,7 +298,7 @@ function resetASCII() {
   createEffect();
   if (asciiContainer) {
     while (asciiContainer.firstChild) {
-        asciiContainer.removeChild(asciiContainer.firstChild);
+      asciiContainer.removeChild(asciiContainer.firstChild);
     }
     asciiContainer.appendChild(effect.domElement);
   } else {
