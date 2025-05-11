@@ -1,25 +1,25 @@
 import './style.css'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
+// import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js' // Replaced with GLTFLoader
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { AsciiEffect } from 'three/examples/jsm/effects/AsciiEffect.js';
 import html2canvas from 'html2canvas';
 
 //LightMode
 let lightMode = true
 
-//Create a clock for rotation
+//Create a clock for rotation and animations
 const clock = new THREE.Clock()
 
 // Set rotate boolean variable
 let rotateModel = false
 
-//Ugh, don't ask about this stuff
-var userUploaded = false
-let controls
+let controls;
+let mixer; // For animations
 
-// Creates empty mesh container
-const myMesh = new THREE.Mesh();
+// Holds the currently loaded model (GLTF scene)
+let myMesh = null; // Will be a THREE.Group or THREE.Scene from GLTF
 
 // Scene
 const scene = new THREE.Scene()
@@ -34,13 +34,14 @@ const pointLight2 = new THREE.PointLight(0xffffff, .5);
 pointLight2.position.set(-500, 100, -400);
 scene.add(pointLight2);
 
-// Parameters
-const stlLoader = new STLLoader()
+// GLTF Loader
+const gltfLoader = new GLTFLoader();
 
-//Material
-const material = new THREE.MeshStandardMaterial()
-material.flatShading = true
-material.side = THREE.DoubleSide;
+// Default material (can be used if a GLTF model is missing materials, or for other simple meshes)
+const defaultMaterial = new THREE.MeshStandardMaterial({
+    flatShading: true, // This might not always be desired for GLTF models
+    side: THREE.DoubleSide
+});
 
 // Sizes
 const sizes = {
@@ -66,96 +67,162 @@ function createEffect() {
     effect.setSize(sizes.width, sizes.height);
     effect.domElement.style.color = ASCIIColor;
     effect.domElement.style.backgroundColor = backgroundColor;
+
+    // Re-initialize OrbitControls with the new DOM element
+    if (controls) {
+        controls.dispose();
+    }
+    controls = new OrbitControls(camera, effect.domElement);
+    if (myMesh) { // If a model exists, point controls to it
+        controls.target.copy(myMesh.position);
+    }
 }
 
-createEffect()
+createEffect(); // Initial effect creation
+document.body.appendChild(effect.domElement); // Append the initial effect's DOM element
+document.getElementById("ascii").style.whiteSpace = "prewrap"; // Assuming 'ascii' is the ID of a container for the effect
 
-document.body.appendChild(effect.domElement)
 
-document.getElementById("ascii").style.whiteSpace = "prewrap"
+// Helper function to dispose of old model resources
+function disposeModel(model) {
+    if (!model) return;
+    model.traverse(object => {
+        if (object.isMesh) {
+            if (object.geometry) {
+                object.geometry.dispose();
+            }
+            if (object.material) {
+                if (Array.isArray(object.material)) {
+                    object.material.forEach(material => {
+                        if (material.map) material.map.dispose();
+                        material.dispose();
+                    });
+                } else {
+                    if (object.material.map) object.material.map.dispose();
+                    object.material.dispose();
+                }
+            }
+        }
+    });
+}
 
-stlLoader.load(
-    './models/test2.stl',
-    function (geometry) {
+function loadGLTFModel(url, isUploadedBuffer = false, dataBuffer = null) {
+    // Clean up previous model and animations
+    if (myMesh) {
+        disposeModel(myMesh);
+        scene.remove(myMesh);
+        myMesh = null;
+    }
+    if (mixer) {
+        mixer.stopAllAction();
+        mixer = null;
+    }
 
-        myMesh.material = material;
-        myMesh.geometry = geometry;
+    const onLoad = (gltf) => {
+        myMesh = gltf.scene;
 
-        var tempGeometry = new THREE.Mesh(geometry, material)
-        myMesh.position.copy = (tempGeometry.position)
+        // Center the model
+        const box = new THREE.Box3().setFromObject(myMesh);
+        const center = box.getCenter(new THREE.Vector3());
+        myMesh.position.sub(center); // Center the model at the origin
 
-        geometry.computeVertexNormals();
-        myMesh.geometry.center()
-
-        myMesh.rotation.x = -90 * Math.PI / 180;
-
-        myMesh.geometry.computeBoundingBox();
-        var bbox = myMesh.geometry.boundingBox;
-
-        myMesh.position.y = ((bbox.max.z - bbox.min.z) / 5)
-
-        camera.position.x = ((bbox.max.x * 4));
-        camera.position.y = ((bbox.max.y));
-        camera.position.z = ((bbox.max.z * 3));
+        // Optional: Apply a default rotation if models are often misaligned
+        // myMesh.rotation.x = -Math.PI / 2;
 
         scene.add(myMesh);
 
+        // Adjust camera to view the model
+        const boundingBox = new THREE.Box3().setFromObject(myMesh);
+        const modelSize = boundingBox.getSize(new THREE.Vector3());
+        const modelCenter = boundingBox.getCenter(new THREE.Vector3());
 
-        controls = new OrbitControls(camera, effect.domElement)
+        const maxDim = Math.max(modelSize.x, modelSize.y, modelSize.z);
+        const fov = camera.fov * (Math.PI / 180);
+        let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+        cameraZ *= 1.7; // Zoom out a bit
 
-
-        function tick() {
-            if (rotateModel == true) {
-                const elapsedTime = clock.getElapsedTime()
-                myMesh.rotation.z = (elapsedTime) / 3
-                render()
-                window.requestAnimationFrame(tick)
-            } else {
-                render()
-                window.requestAnimationFrame(tick)
-            }
+        camera.position.set(modelCenter.x, modelCenter.y + maxDim * 0.3 , modelCenter.z + cameraZ);
+        camera.lookAt(modelCenter);
+        
+        if (controls) {
+            controls.target.copy(modelCenter);
+            controls.update();
         }
 
-        function render() {
-            effect.render(scene, camera);
+        // Setup animations
+        if (gltf.animations && gltf.animations.length) {
+            mixer = new THREE.AnimationMixer(myMesh);
+            const action = mixer.clipAction(gltf.animations[0]); // Play the first animation
+            action.play();
+        } else {
+            console.log("No animations found in the model.");
         }
+    };
 
-        tick()
+    const onProgress = undefined; // Optional: (xhr) => console.log((xhr.loaded / xhr.total * 100) + '% loaded')
 
-        document.getElementById('file-selector').addEventListener('change', openFile, false);
+    const onError = (error) => {
+        console.error('An error happened while loading GLTF:', error);
+        alert('Failed to load GLTF model. Please ensure it is a valid .glb or .gltf file.');
+    };
 
-
-        function openFile(evt) {
-            const fileObject = evt.target.files[0];
-
-            const reader = new FileReader();
-            reader.readAsArrayBuffer(fileObject);
-            reader.onload = function () {
-                if (userUploaded == false) {
-                    userUploaded = true;
-                }
-                const geometry = stlLoader.parse(this.result);
-                tempGeometry = geometry;
-                myMesh.geometry = geometry;
-                myMesh.geometry.center()
-
-                myMesh.rotation.x = -90 * Math.PI / 180;
-
-                myMesh.geometry.computeBoundingBox();
-                var bbox = myMesh.geometry.boundingBox;
-
-                // camera.position.x = ((bbox.max.x * 4));
-                // camera.position.y = ((bbox.max.y));
-                // camera.position.z = ((bbox.max.z * 3));
-
-                myMesh.position.y = ((bbox.max.z - bbox.min.z) / 6)
-
-                scene.add(myMesh);
-            };
-        };
+    if (isUploadedBuffer && dataBuffer) {
+        gltfLoader.parse(dataBuffer, '', onLoad, onError);
+    } else {
+        gltfLoader.load(url, onLoad, onProgress, onError);
     }
-)
+}
 
+// Initial model load (replace with your default animated model)
+loadGLTFModel('./models/animated_model.glb'); // <<< YOU NEED TO PROVIDE an animated_model.glb in ./models/
+
+// --- Event Listeners & UI Functions ---
+
+document.getElementById('file-selector').addEventListener('change', openFile, false);
+document.getElementById('file-selector').accept = ".glb,.gltf"; // Suggest correct file types
+
+function openFile(evt) {
+    const fileObject = evt.target.files[0];
+    if (!fileObject) return;
+
+    const reader = new FileReader();
+    reader.readAsArrayBuffer(fileObject);
+    reader.onload = function () {
+        loadGLTFModel(null, true, this.result);
+    };
+    reader.onerror = function() {
+        console.error("Error reading file.");
+        alert("Error reading the selected file.");
+    };
+    // Clear the file input so the same file can be re-selected
+    evt.target.value = "";
+}
+
+// Main animation loop
+function tick() {
+    const delta = clock.getDelta();
+
+    if (mixer) {
+        mixer.update(delta); // Update animations
+    }
+
+    if (rotateModel && myMesh) {
+        myMesh.rotation.z += 0.5 * delta; // Frame-rate independent rotation
+    }
+    
+    if (controls) {
+        controls.update(); // Only if damping or autoRotate is enabled
+    }
+
+    render();
+    window.requestAnimationFrame(tick);
+}
+
+function render() {
+    effect.render(scene, camera);
+}
+
+tick(); // Start the animation loop
 
 document.getElementById('screenshotButton').addEventListener('click', takeScreenshot);
 
@@ -182,34 +249,23 @@ function rotateMode() {
 document.getElementById('updateASCII').addEventListener('click', updateASCII);
 
 function updateASCII() {
-
-    document.body.removeChild(effect.domElement)
-
     characters = " " + "." + document.getElementById('newASCII').value;
-
-    createEffect()
-    onWindowResize()
-
-    document.body.appendChild(effect.domElement)
-
-    controls = new OrbitControls(camera, effect.domElement)
-
+    // createEffect will remove the old domElement, create a new one, and append it.
+    // It also re-initializes controls.
+    createEffect();
+    document.body.appendChild(effect.domElement); // createEffect now handles controls, but not appending.
+    onWindowResize(); // Ensure effect is resized after characters change resolution potentially
 }
 
 document.getElementById('resetASCII').addEventListener('click', resetASCII);
 
 function resetASCII() {
-
-    document.body.removeChild(effect.domElement)
-
-    characters = ' .:-+*=%@#'
-
-    createEffect()
-    onWindowResize()
-
-    document.body.appendChild(effect.domElement)
-
-    controls = new OrbitControls(camera, effect.domElement)
+    characters = ' .:-+*=%@#';
+    // createEffect will remove the old domElement, create a new one, and append it.
+    // It also re-initializes controls.
+    createEffect();
+    document.body.appendChild(effect.domElement); // createEffect now handles controls, but not appending.
+    onWindowResize();
 }
 
 document.getElementById('lightDark').addEventListener('click', lightDark);
